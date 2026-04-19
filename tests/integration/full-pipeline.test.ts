@@ -85,11 +85,19 @@ describe('full pipeline integration', () => {
         expect(report.stock.year).toBe(year)
         expect(report.stock.netTaxableIncomeCny).toBeGreaterThanOrEqual(0)
         expect(report.stock.estimatedTax).toBeCloseTo(report.stock.netTaxableIncomeCny * 0.2)
+        expect(report.stock.optionStockGains).toBeDefined()
+        expect(Array.isArray(report.stock.optionStockGains)).toBe(true)
       })
 
       it('should have fund summary', () => {
         expect(report.fund).toBeDefined()
         expect(report.fund.year).toBe(year)
+        for (const g of report.fund.gains) {
+          expect(g.startValue).toBeGreaterThanOrEqual(0)
+          expect(g.endValue).toBeGreaterThanOrEqual(0)
+          expect(g.buyAmount).toBeGreaterThanOrEqual(0)
+          expect(g.sellAmount).toBeGreaterThanOrEqual(0)
+        }
       })
 
       it('should have dividend summary', () => {
@@ -115,6 +123,42 @@ describe('full pipeline integration', () => {
           report.dividend.netTaxPayable
         expect(report.totalEstimatedTax).toBeCloseTo(expected)
       })
+
+      it('should have validation result', () => {
+        expect(report.validation).toBeDefined()
+        expect(report.validation!.year).toBe(year)
+        expect(report.validation!.differenceRate).toBeGreaterThanOrEqual(0)
+        expect(typeof report.validation!.isReasonable).toBe('boolean')
+        expect(report.validation!.details.length).toBeGreaterThan(0)
+        expect(report.validation!.unrealizedPnlCny).toBeDefined()
+        expect(typeof report.validation!.unrealizedPnlCny).toBe('number')
+      })
+
+      it('should have cash flow classification in validation', () => {
+        expect(report.validation!.externalCashFlowCny).toBeDefined()
+        expect(report.validation!.internalCashFlowCny).toBeDefined()
+        expect(report.validation!.cashFlowCategoryCounts).toBeDefined()
+        expect(typeof report.validation!.externalCashFlowCny).toBe('number')
+        expect(typeof report.validation!.internalCashFlowCny).toBe('number')
+      })
     })
   }
+
+  describe('multi-year cost basis accuracy', () => {
+    const report2024 = calculateYearlyReport(data, 2024)
+
+    it('should have reasonable validation difference with all years loaded', () => {
+      expect(report2024.validation!.differenceRate).toBeLessThan(0.15)
+    })
+
+    it('should track option stock gains separately', () => {
+      expect(report2024.stock.optionStockGains).toBeDefined()
+      expect(report2024.stock.optionStockTotalGainCny).toBeDefined()
+    })
+
+    it('should include unrealized P&L in validation', () => {
+      expect(report2024.validation!.unrealizedPnlCny).toBeDefined()
+      expect(report2024.validation!.unrealizedPnlHkd).toBeDefined()
+    })
+  })
 })

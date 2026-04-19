@@ -4,8 +4,10 @@ import {
   addBuy,
   processSell,
   processIpoCost,
+  processOptionExerciseCost,
+  processAssetTransfers,
 } from '../../src/lib/calculator/cost-tracker'
-import type { CashFlow } from '../../src/lib/types'
+import type { CashFlow, AssetTransfer } from '../../src/lib/types'
 
 describe('cost-tracker', () => {
   describe('addBuy', () => {
@@ -76,6 +78,88 @@ describe('cost-tracker', () => {
       ]
       const cost = processIpoCost(cashFlows, '6601', '20210309')
       expect(cost).toBeCloseTo(23231.78 - 18585.43 + 100 + 136.79)
+    })
+  })
+
+  describe('addBuy with isOptionStock', () => {
+    it('should tag new position as option stock', () => {
+      const state = createCostTracker()
+      const result = addBuy(state, 'SOGP', 'US', 'USD', 100, 500, { isOptionStock: true })
+      const pos = result.positions.get('SOGP:US')
+      expect(pos).toBeDefined()
+      expect(pos!.isOptionStock).toBe(true)
+      expect(pos!.quantity).toBe(100)
+    })
+
+    it('should preserve isOptionStock flag on merge', () => {
+      let state = createCostTracker()
+      state = addBuy(state, 'SOGP', 'US', 'USD', 100, 500, { isOptionStock: true })
+      state = addBuy(state, 'SOGP', 'US', 'USD', 50, 200)
+      const pos = state.positions.get('SOGP:US')
+      expect(pos!.isOptionStock).toBe(true)
+      expect(pos!.quantity).toBe(150)
+    })
+
+    it('should not set isOptionStock when not specified', () => {
+      const state = createCostTracker()
+      const result = addBuy(state, '700', 'SEHK', 'HKD', 100, 39980)
+      const pos = result.positions.get('700:SEHK')
+      expect(pos!.isOptionStock).toBeUndefined()
+    })
+  })
+
+  describe('processOptionExerciseCost', () => {
+    it('should extract cost from option exercise cash flows', () => {
+      const cashFlows: CashFlow[] = [
+        { date: '20240723', accountName: 'test', accountId: '1', type: '资金进出', direction: 'Out', currency: 'USD', amount: 15, remark: 'Handling Charges for #SOGP Sound Group Option exercise' },
+      ]
+      const cost = processOptionExerciseCost(cashFlows, 'SOGP', '20240723')
+      expect(cost).toBe(15)
+    })
+
+    it('should return 0 when no matching cash flows', () => {
+      const cashFlows: CashFlow[] = [
+        { date: '20240723', accountName: 'test', accountId: '1', type: '资金进出', direction: 'Out', currency: 'HKD', amount: 100, remark: 'Some unrelated remark' },
+      ]
+      const cost = processOptionExerciseCost(cashFlows, 'SOGP', '20240723')
+      expect(cost).toBe(0)
+    })
+
+    it('should ignore cash flows outside date window', () => {
+      const cashFlows: CashFlow[] = [
+        { date: '20240101', accountName: 'test', accountId: '1', type: '资金进出', direction: 'Out', currency: 'USD', amount: 15, remark: 'Handling Charges for #SOGP Sound Group Option exercise' },
+      ]
+      const cost = processOptionExerciseCost(cashFlows, 'SOGP', '20240723')
+      expect(cost).toBe(0)
+    })
+  })
+
+  describe('processAssetTransfers with option exercise', () => {
+    it('should add option exercise shares to cost tracker', () => {
+      const state = createCostTracker()
+      const transfers: AssetTransfer[] = [
+        { date: '20240723', accountName: 'test', accountId: '1', category: '证券', symbol: 'SOGP', market: 'US', direction: 'In', type: '资产进出', currency: 'USD', quantity: 303, remark: 'Share Deposit for #SOGP Sound Group Option exercise' },
+      ]
+      const cashFlows: CashFlow[] = [
+        { date: '20240723', accountName: 'test', accountId: '1', type: '资金进出', direction: 'Out', currency: 'USD', amount: 15, remark: 'Handling Charges for #SOGP Sound Group Option exercise' },
+      ]
+      const result = processAssetTransfers(state, transfers, cashFlows, 2024)
+      const pos = result.positions.get('SOGP:US')
+      expect(pos).toBeDefined()
+      expect(pos!.quantity).toBe(303)
+      expect(pos!.isOptionStock).toBe(true)
+      expect(pos!.totalCost).toBe(15)
+    })
+
+    it('should generate warning for option exercise', () => {
+      const state = createCostTracker()
+      const transfers: AssetTransfer[] = [
+        { date: '20240723', accountName: 'test', accountId: '1', category: '证券', symbol: 'SOGP', market: 'US', direction: 'In', type: '资产进出', currency: 'USD', quantity: 303, remark: 'Share Deposit for #SOGP Sound Group Option exercise' },
+      ]
+      const result = processAssetTransfers(state, transfers, [], 2024)
+      expect(result.warnings).toHaveLength(1)
+      expect(result.warnings[0].type).toBe('excluded_option')
+      expect(result.warnings[0].message).toContain('对账追踪')
     })
   })
 })

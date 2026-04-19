@@ -6,6 +6,7 @@ import type {
   Trade,
   AssetTransfer,
   CashFlow,
+  CashBalance,
   Market,
   Currency,
   TradeDirection,
@@ -41,7 +42,7 @@ function parseCurrency(raw: string): Currency {
 
 function parseDirection(raw: string): TradeDirection {
   const d = raw.trim()
-  if (d.includes('买入') || d.toLowerCase().includes('buy')) return 'buy'
+  if (d.includes('买入') || d.includes('申购') || d.toLowerCase().includes('buy')) return 'buy'
   return 'sell'
 }
 
@@ -162,6 +163,24 @@ function parseCashFlows(wb: XLSX.WorkBook): CashFlow[] {
   return result
 }
 
+function parseCashBalances(wb: XLSX.WorkBook): CashBalance[] {
+  const rows = sheetToRows(wb, '证券-资金总览')
+  const result: CashBalance[] = []
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i]
+    if (!r || !cellVal(r, 0)) continue
+    result.push({
+      periodType: cellVal(r, 0).includes('期初') ? 'start' : 'end',
+      date: cellVal(r, 1),
+      accountName: cellVal(r, 2),
+      accountId: cellVal(r, 3),
+      currency: parseCurrency(cellVal(r, 4)),
+      amount: Math.abs(cellNum(r, 5)),
+    })
+  }
+  return result
+}
+
 export function parseAnnualStatement(buffer: ArrayBuffer, filename: string): AnnualStatement {
   const wb = XLSX.read(buffer, { type: 'array' })
 
@@ -173,6 +192,7 @@ export function parseAnnualStatement(buffer: ArrayBuffer, filename: string): Ann
   const trades = parseTrades(wb)
   const assetTransfers = parseAssetTransfers(wb)
   const cashFlows = parseCashFlows(wb)
+  const cashBalances = parseCashBalances(wb)
 
   return {
     year,
@@ -181,6 +201,7 @@ export function parseAnnualStatement(buffer: ArrayBuffer, filename: string): Ann
     trades,
     assetTransfers,
     cashFlows,
+    cashBalances,
     fundBalanceStart: {},
     fundBalanceEnd: {},
   }

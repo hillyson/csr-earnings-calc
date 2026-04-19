@@ -82,6 +82,15 @@ export interface ExchangeRate {
   hkdToCny: number
 }
 
+export interface CashBalance {
+  periodType: 'start' | 'end'
+  date: string
+  accountName: string
+  accountId: string
+  currency: Currency
+  amount: number
+}
+
 export interface AnnualStatement {
   year: number
   accounts: AccountInfo[]
@@ -89,6 +98,7 @@ export interface AnnualStatement {
   trades: Trade[]
   assetTransfers: AssetTransfer[]
   cashFlows: CashFlow[]
+  cashBalances: CashBalance[]
   fundBalanceStart: Record<string, number>
   fundBalanceEnd: Record<string, number>
 }
@@ -111,6 +121,7 @@ export interface StockPosition {
   quantity: number
   avgCost: number
   totalCost: number
+  isOptionStock?: boolean
 }
 
 export interface RealizedGain {
@@ -125,9 +136,8 @@ export interface RealizedGain {
   fees: number
   gain: number
   gainCny: number
-}
-
-export interface StockSummary {
+  isOptionStock?: boolean
+} {
   year: number
   totalGainHkd: number
   totalGainUsd: number
@@ -137,13 +147,16 @@ export interface StockSummary {
   estimatedTax: number
   realizedGains: RealizedGain[]
   unrealizedPositions: StockPosition[]
+  optionStockGains: RealizedGain[]
+  optionStockTotalGainHkd: number
+  optionStockTotalGainCny: number
 }
 
 export interface FundGain {
   symbol: string
   currency: Currency
-  buyDate: string
-  sellDate: string
+  startValue: number
+  endValue: number
   buyAmount: number
   sellAmount: number
   gain: number
@@ -187,6 +200,7 @@ export interface YearlyTaxReport {
   totalEstimatedTax: number
   dataSources: string[]
   warnings: ValidationWarning[]
+  validation?: ValidationResult
 }
 
 export interface ValidationWarning {
@@ -202,4 +216,28 @@ export interface YearComparison {
   fundGains: number[]
   dividends: number[]
   totalTax: number[]
+}
+
+export interface ValidationResult {
+  year: number
+  startTotalHkd: number
+  endTotalHkd: number
+  netAssetChangeHkd: number
+  netCashFlowHkd: number
+  startTotalCny: number
+  endTotalCny: number
+  netAssetChange: number
+  calculatedIncome: number
+  netCashFlowCny: number
+  difference: number
+  differenceRate: number
+  isReasonable: boolean
+  details: Array<{ label: string; valueCny: number; valueHkd?: number }>
+  externalCashFlowCny?: number
+  internalCashFlowCny?: number
+  cashFlowCategoryCounts?: Record<string, number>
+  unrealizedPnlHkd?: number
+  unrealizedPnlCny?: number
+  optionStockGainHkd?: number
+  optionStockGainCny?: number
 }

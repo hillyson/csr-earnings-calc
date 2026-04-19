@@ -18,6 +18,8 @@ function resolveKey(symbol: string, market: Market): string {
   return SYMBOL_ALIASES[key] || key
 }
 
+export { resolveKey }
+
 export function createCostTracker(): CostTrackerState {
   return {
     positions: new Map(),
@@ -32,6 +34,7 @@ export function addBuy(
   currency: Currency,
   quantity: number,
   totalCost: number,
+  options?: { isOptionStock?: boolean },
 ): CostTrackerState {
   const key = resolveKey(symbol, market)
   const existing = state.positions.get(key)
@@ -48,6 +51,7 @@ export function addBuy(
         quantity: newTotalQty,
         avgCost: newAvgCost,
         totalCost: newTotalCost,
+        isOptionStock: existing.isOptionStock || options?.isOptionStock,
       }),
     }
   }
@@ -62,6 +66,7 @@ export function addBuy(
       quantity,
       avgCost,
       totalCost,
+      isOptionStock: options?.isOptionStock,
     }),
   }
 }
@@ -154,6 +159,31 @@ export function processIpoCost(
   return applicationAmount - refundAmount + handlingFee + financingInterest
 }
 
+export function processOptionExerciseCost(
+  cashFlows: CashFlow[],
+  symbol: string,
+  exerciseDate: string,
+): number {
+  const datePrefix = exerciseDate.substring(0, 6)
+  let totalCost = 0
+
+  for (const cf of cashFlows) {
+    const remark = cf.remark.toUpperCase()
+    if (!remark.includes('OPTION EXERCISE')) continue
+    if (!remark.includes(symbol.toUpperCase()) && !remark.includes(`#${symbol.toUpperCase()}`)) continue
+
+    const cfDatePrefix = cf.date.substring(0, 6)
+    const monthDiff = Math.abs(Number(cfDatePrefix) - Number(datePrefix))
+    if (monthDiff > 2) continue
+
+    if (cf.direction === 'Out') {
+      totalCost += cf.amount
+    }
+  }
+
+  return totalCost
+}
+
 export function isOptionExercise(transfer: AssetTransfer): boolean {
   return transfer.remark.toLowerCase().includes('option exercise')
 }
@@ -186,6 +216,26 @@ export function processAssetTransfers(
 
   for (const transfer of sortedTransfers) {
     if (isOptionExercise(transfer)) {
+      if (transfer.direction === 'In') {
+        const cost = processOptionExerciseCost(cashFlows, transfer.symbol, transfer.date)
+        currentState = addBuy(
+          currentState,
+          transfer.symbol,
+          transfer.market,
+          transfer.currency,
+          transfer.quantity,
+          cost,
+          { isOptionStock: true },
+        )
+      } else {
+        const result = processSell(
+          currentState,
+          transfer.symbol,
+          transfer.market,
+          transfer.quantity,
+        )
+        currentState = result.state
+      }
       currentState = {
         ...currentState,
         warnings: [
@@ -193,7 +243,7 @@ export function processAssetTransfers(
           {
             type: 'excluded_option',
             symbol: transfer.symbol,
-            message: `期权行权股票 ${transfer.symbol} 已排除计算（已单独完税）`,
+            message: `期权行权股票 ${transfer.symbol} 已纳入对账追踪，税务计算时排除`,
             year,
           },
         ],
@@ -252,15 +302,13 @@ export function processAssetTransfers(
     }
 
     if (isStockDividend(transfer) && transfer.direction === 'In') {
-      const faceValue = 1.0
-      const cost = transfer.quantity * faceValue
       currentState = addBuy(
         currentState,
         transfer.symbol,
         transfer.market,
         transfer.currency,
         transfer.quantity,
-        cost,
+        0,
       )
       continue
     }

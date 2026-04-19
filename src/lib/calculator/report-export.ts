@@ -39,11 +39,23 @@ export function generateReportText(report: YearlyTaxReport): string {
   }
   lines.push('')
 
+  if (report.stock.optionStockGains.length > 0) {
+    lines.push(`二-附、期权行权股票交易（已单独完税，不计入应纳税额）`)
+    lines.push(`${'─'.repeat(50)}`)
+    for (const g of report.stock.optionStockGains) {
+      lines.push(`${g.symbol} | 卖出日期: ${g.sellDate} | 数量: ${g.sellQuantity}`)
+      lines.push(`  卖出金额: ${fmt(g.sellAmount)} ${g.currency} | 成本: ${fmt(g.costBasis)} | 手续费: ${fmt(g.fees)}`)
+      lines.push(`  收益: ${fmt(g.gain)} ${g.currency} → ¥${fmt(g.gainCny)}`)
+    }
+    lines.push(`期权股票收益合计 (CNY)：¥${fmt(report.stock.optionStockTotalGainCny)}`)
+    lines.push('')
+  }
+
   if (report.fund.gains.length > 0) {
     lines.push(`三、基金收益明细（与股票不可互抵）`)
     lines.push(`${'─'.repeat(50)}`)
     for (const g of report.fund.gains) {
-      lines.push(`${g.symbol} | 买入: ${fmt(g.buyAmount)} | 卖出: ${fmt(g.sellAmount)} | 收益: ${fmt(g.gain)} HKD → ¥${fmt(g.gainCny)}`)
+      lines.push(`${g.symbol} | 期初: ${fmt(g.startValue)} | 申购: ${fmt(g.buyAmount)} | 赎回: ${fmt(g.sellAmount)} | 期末: ${fmt(g.endValue)} | 收益: ${fmt(g.gain)} HKD → ¥${fmt(g.gainCny)}`)
     }
     lines.push(`基金总收益 (CNY)：¥${fmt(report.fund.totalGainCny)}`)
     lines.push('')
@@ -66,6 +78,22 @@ export function generateReportText(report: YearlyTaxReport): string {
     for (const w of report.warnings) {
       lines.push(`⚠️ ${w.message}`)
     }
+    lines.push('')
+  }
+
+  if (report.validation) {
+    lines.push(`六、对账验证`)
+    lines.push(`${'─'.repeat(50)}`)
+    lines.push(`已实现收益 (CNY)：¥${fmt(report.validation.calculatedIncome)}`)
+    if (report.validation.unrealizedPnlCny != null) {
+      lines.push(`未实现盈亏 (CNY)：¥${fmt(report.validation.unrealizedPnlCny)}`)
+    }
+    if (report.validation.optionStockGainCny) {
+      lines.push(`期权股票收益 (CNY)：¥${fmt(report.validation.optionStockGainCny)}`)
+    }
+    lines.push(`账户净值变化 (CNY)：¥${fmt(report.validation.netAssetChange)}`)
+    lines.push(`差额 (CNY)：¥${fmt(report.validation.difference)}`)
+    lines.push(`差异率：${(report.validation.differenceRate * 100).toFixed(1)}%`)
     lines.push('')
   }
 

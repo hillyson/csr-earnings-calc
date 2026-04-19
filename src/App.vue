@@ -107,12 +107,12 @@ function recalculate() {
 
         <ResultDashboard v-if="report" :report="report" />
 
-        <DataSourceInfo v-if="report" :report="report" />
-
         <YearComparison
           v-if="allReports.size > 1"
           :reports="allReports"
         />
+
+        <DataSourceInfo v-if="report" :report="report" />
       </template>
     </main>
 

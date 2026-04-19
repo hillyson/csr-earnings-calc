@@ -1,5 +1,137 @@
-# Vue 3 + TypeScript + Vite
+# 境外证券收益个税计算器
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+基于中国居民个人所得税规则，自动解析富途证券年度结单，计算境外证券投资的应纳税所得额。
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## 功能特性
+
+- **Excel 解析** — 直接上传富途年度账单和利息股息汇总 Excel 文件，自动识别并解析
+- **多年联合分析** — 支持同时导入多年数据，跨年度追踪持仓成本（移动加权平均法）
+- **股票交易** — 按标的分别计算已实现收益，支持港股 / 美股 / 多市场
+- **基金收益** — 通过期初期末持仓 + 申购赎回流水计算净收益
+- **分红利息** — 汇总各账户分红 / 利息收入，计算已代扣税额和应补缴税额
+- **期权行权股票** — 单独追踪期权行权获得的股票，纳入对账但不重复计税
+- **对账验证** — 自动校验计算结果与账户净值变化的一致性（含未实现盈亏）
+- **年度对比** — 多年数据横向对比视图
+- **报告导出** — 一键导出完整的中文个税计算报告（.txt）
+
+## 技术栈
+
+| 层级 | 技术 |
+|------|------|
+| 前端框架 | Vue 3 + TypeScript |
+| 构建工具 | Vite |
+| 样式 | Tailwind CSS v4 |
+| Excel 解析 | SheetJS (xlsx) |
+| 单元 / 集成测试 | Vitest |
+| E2E 测试 | Playwright |
+
+## 快速开始
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+
+# 构建生产版本
+npm run build
+```
+
+打开浏览器访问 `http://localhost:5173`，上传富途导出的 Excel 文件即可使用。
+
+### 所需文件
+
+从富途牛牛导出以下文件（支持多年）：
+
+| 文件类型 | 命名示例 |
+|---------|---------|
+| 年度账单 | `2024_年度账单_14621048.xlsx` |
+| 利息股息汇总 | `2024_利息股息及其他收入汇总_14621048.xlsx` |
+
+> 建议同时上传所有年份的文件，以确保跨年持仓的成本计算准确。
+
+## 项目结构
+
+```
+src/
+├── components/              # Vue 组件
+│   ├── FileUploader.vue     # 文件拖拽上传
+│   ├── YearSelector.vue     # 年度切换
+│   ├── ResultDashboard.vue  # 计算结果主面板
+│   ├── ValidationCard.vue   # 对账验证卡片
+│   ├── YearComparison.vue   # 多年对比
+│   └── DataSourceInfo.vue   # 数据来源展示
+├── lib/
+│   ├── types.ts             # 全部类型定义
+│   ├── stock-names.ts       # 股票代码 → 中文名映射
+│   ├── parser/              # Excel 解析器
+│   │   ├── annual-statement.ts  # 年度账单解析
+│   │   └── dividend-statement.ts # 分红利息解析
+│   └── calculator/          # 计算引擎
+│       ├── cost-tracker.ts  # 持仓成本追踪（移动加权平均）
+│       ├── fx-converter.ts  # 汇率转换
+│       ├── tax-engine.ts    # 税务计算主逻辑
+│       └── report-export.ts # 报告文本生成
+├── App.vue
+└── main.ts
+
+tests/
+├── unit/                    # 单元测试
+├── integration/             # 集成测试（全流程）
+└── e2e/                     # 端到端测试
+
+scripts/
+└── diag-2024.ts             # 诊断脚本（调试对账差异）
+```
+
+## 计算方法
+
+### 股票成本 — 移动加权平均法
+
+每次买入后重新计算加权平均成本，卖出时按平均成本结转：
+
+```
+买入后平均成本 = (原持仓成本 + 本次买入金额) / (原持仓数量 + 本次买入数量)
+卖出收益 = 卖出金额 - 卖出数量 × 平均成本 - 手续费
+```
+
+### 税率
+
+| 所得类型 | 税率 | 说明 |
+|---------|------|------|
+| 财产转让所得 | 20% | 股票 / 基金已实现收益 |
+| 股息红利所得 | 20% | 境外已代扣税额可抵免 |
+
+### 汇率
+
+使用富途年度结单中提供的参考汇率（年末汇率），支持 USD → HKD → CNY 链式转换。
+
+### 对账公式
+
+```
+调整后总收益 = 已实现收益 + 未实现盈亏变动 + 期权股票收益
+差额 = 调整后总收益 - (账户净值变化 - 外部净资金流入)
+```
+
+## 测试
+
+```bash
+# 运行全部测试
+npm test
+
+# 监听模式
+npm run test:watch
+
+# 覆盖率报告
+npm run test:coverage
+
+# E2E 测试
+npm run test:e2e
+```
+
+> 集成测试需要在 `富途年度结单/` 目录下放置真实的 Excel 文件。该目录已在 `.gitignore` 中排除。
+
+## 免责声明
+
+本工具仅供个人学习和参考使用，不构成任何税务建议。计算结果可能存在偏差，实际申报请咨询专业税务顾问。

@@ -72,4 +72,44 @@ test.describe('Tax Calculator E2E', () => {
     await expect(page.locator('text=股票已实现收益')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('button:has-text("导出报告")')).toBeVisible()
   })
+
+  test('stock trades are grouped by symbol with collapsible sections', async ({ page }) => {
+    await page.goto('/')
+
+    const files = [
+      resolve(DATA_DIR, '2024_年度账单_14621048.xlsx'),
+      resolve(DATA_DIR, '2024_利息股息及其他收入汇总_14621048.xlsx'),
+    ]
+
+    const input = page.locator('input[type="file"]')
+    await input.setInputFiles(files)
+
+    await expect(page.locator('text=股票已实现收益')).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('text=股票交易明细')).toBeVisible()
+
+    const groupButtons = page.locator('button:has-text("笔交易")')
+    const count = await groupButtons.count()
+    expect(count).toBeGreaterThan(0)
+
+    await groupButtons.first().click()
+    await expect(page.locator('th:has-text("卖出日期")')).toBeVisible()
+  })
+
+  test('validation card is displayed after upload', async ({ page }) => {
+    await page.goto('/')
+
+    const files = [
+      resolve(DATA_DIR, '2024_年度账单_14621048.xlsx'),
+      resolve(DATA_DIR, '2024_利息股息及其他收入汇总_14621048.xlsx'),
+    ]
+
+    const input = page.locator('input[type="file"]')
+    await input.setInputFiles(files)
+
+    await expect(page.locator('text=股票已实现收益')).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('text=期初期末对账验证')).toBeVisible({ timeout: 5000 })
+    await page.locator('text=期初期末对账验证').scrollIntoViewIfNeeded()
+    await expect(page.getByText('期初总资产')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText('计算总收益')).toBeVisible()
+  })
 })

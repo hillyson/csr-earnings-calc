@@ -5,6 +5,8 @@ export {
   addBuy,
   processSell,
   processIpoCost,
+  processOptionExerciseCost,
   processTrades,
   processAssetTransfers,
+  resolveKey,
 } from './cost-tracker'
