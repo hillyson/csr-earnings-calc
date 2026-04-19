@@ -137,7 +137,9 @@ export interface RealizedGain {
   gain: number
   gainCny: number
   isOptionStock?: boolean
-} {
+}
+
+export interface StockSummary {
   year: number
   totalGainHkd: number
   totalGainUsd: number

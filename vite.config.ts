@@ -3,6 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
+  base: '/csr-earnings-calc/',
   plugins: [vue(), tailwindcss()],
   resolve: {
     alias: {
