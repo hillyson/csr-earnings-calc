@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "convert:aeoi": "node scripts/convert-aeoi-pdf.mjs"
   },
   "dependencies": {
     "file-saver": "^2.0.5",
@@ -26,6 +27,7 @@
     "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.9.1",
     "jsdom": "^29.0.2",
+    "pdfjs-dist": "^6.0.227",
     "tailwindcss": "^4.2.2",
     "typescript": "~6.0.2",
     "vite": "^8.0.4",

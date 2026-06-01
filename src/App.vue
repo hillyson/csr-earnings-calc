@@ -4,6 +4,7 @@ import { parseAnnualStatement, parseDividendReport } from './lib/parser'
 import { calculateYearlyReport } from './lib/calculator'
 import type { ParsedData, YearlyTaxReport } from './lib/types'
 import FileUploader from './components/FileUploader.vue'
+import AeoiConverter from './components/AeoiConverter.vue'
 import YearSelector from './components/YearSelector.vue'
 import ResultDashboard from './components/ResultDashboard.vue'
 import DataSourceInfo from './components/DataSourceInfo.vue'
@@ -93,6 +94,8 @@ function recalculate() {
 
     <main class="max-w-5xl mx-auto px-4 py-6 sm:px-6 space-y-6">
       <FileUploader @files-uploaded="handleFilesUploaded" />
+
+      <AeoiConverter />
 
       <div v-if="parseError" class="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700" data-testid="parse-error">
         解析出错：{{ parseError }}
